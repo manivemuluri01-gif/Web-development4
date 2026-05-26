@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow — To-Do App</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #13161e;
+    --surface2: #1a1e2a;
+    --border: #252a38;
+    --accent: #00e5a0;
+    --accent2: #5b6bff;
+    --accent3: #ff5f7e;
+    --text: #e8eaf2;
+    --muted: #5a607a;
+    --done: #2a2e3d;
+    --done-text: #4a5068;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 600px 400px at 10% 20%, rgba(0,229,160,0.04) 0%, transparent 70%),
+      radial-gradient(ellipse 500px 500px at 90% 80%, rgba(91,107,255,0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    margin-bottom: 40px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .stats {
+    display: flex;
+    gap: 20px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .stat strong { color: var(--accent); font-size: 1.1rem; display: block; letter-spacing: -0.02em; font-family: 'Syne', sans-serif; }
+
+  /* Add Task Panel */
+  .add-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    animation: slideDown 0.4s ease;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  input[type="text"], input[type="date"], input[type="time"], select, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,160,0.1);
+  }
+
+  #task-input {
+    flex: 1;
+    min-width: 200px;
+    font-size: 0.9rem;
+  }
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 70px;
+    margin-bottom: 14px;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  select {
+    cursor: pointer;
+  }
+
+  select option { background: var(--surface2); }
+
+  /* Priority badge */
+  .priority-select {
+    appearance: none;
+    padding-right: 28px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a607a' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
+
+  /* Buttons */
+  .btn {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0d0f14;
+  }
+
+  .btn-primary:hover { background: #00ffb3; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,160,0.25); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .tab {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tab.active { background: var(--accent); color: #0d0f14; border-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); border-color: var(--muted); }
+
+  /* Task list */
+  .tasks-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .task-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    transition: all 0.2s;
+    animation: fadeInUp 0.3s ease both;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .task-item:hover { border-color: #333849; transform: translateY(-1px); box-shadow: 0 4px 24px rgba(0,0,0,0.25); }
+
+  .task-item.completed {
+    background: var(--done);
+    border-color: var(--done);
+  }
+
+  .task-item.completed .task-title {
+    text-decoration: line-through;
+    color: var(--done-text);
+  }
+
+  .task-item.completed .task-meta,
+  .task-item.completed .task-notes {
+    color: var(--done-text);
+  }
+
+  /* Priority stripe */
+  .task-item[data-priority="high"] { border-left: 3px solid var(--accent3); }
+  .task-item[data-priority="medium"] { border-left: 3px solid #f5a623; }
+  .task-item[data-priority="low"] { border-left: 3px solid var(--accent2); }
+
+  /* Checkbox */
+  .checkbox {
+    width: 22px; height: 22px; min-width: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    background: transparent;
+    margin-top: 1px;
+  }
+
+  .checkbox:hover { border-color: var(--accent); }
+  .checkbox.checked { background: var(--accent); border-color: var(--accent); }
+  .checkbox.checked svg { display: block; }
+  .checkbox svg { display: none; }
+
+  .task-body { flex: 1; min-width: 0; }
+
+  .task-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .task-notes {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+    line-height: 1.5;
+  }
+
+  .task-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
+  .badge {
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-size: 0.65rem;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .badge-high { background: rgba(255,95,126,0.15); color: var(--accent3); }
+  .badge-medium { background: rgba(245,166,35,0.15); color: #f5a623; }
+  .badge-low { background: rgba(91,107,255,0.15); color: var(--accent2); }
+
+  .task-actions {
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.15s;
+    margin-left: 4px;
+  }
+
+  .task-item:hover .task-actions { opacity: 1; }
+
+  .action-btn {
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+    font-size: 0.75rem;
+  }
+
+  .action-btn:hover { color: var(--text); border-color: var(--muted); background: var(--border); }
+  .action-btn.del:hover { color: var(--accent3); border-color: var(--accent3); background: rgba(255,95,126,0.1); }
+
+  /* Edit mode */
+  .task-item.editing { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,229,160,0.1); }
+
+  .edit-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    outline: none;
+  }
+
+  .edit-notes {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .icon { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+  .empty-state p { font-size: 0.85rem; }
+
+  /* Progress bar */
+  .progress-wrap {
+    margin-bottom: 28px;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .progress-bar {
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 100px;
+    transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  /* Responsive */
+  @media (max-width: 500px) {
+    .logo { font-size: 1.5rem; }
+    .task-actions { opacity: 1; }
+    header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <div class="logo">Task<span>Flow</span></div>
+      <div style="font-size:0.7rem;color:var(--muted);margin-top:4px;letter-spacing:0.06em;">SkillCraft Technology · Task 04</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><strong id="stat-total">0</strong>Total</div>
+      <div class="stat"><strong id="stat-done">0</strong>Done</div>
+      <div class="stat"><strong id="stat-left">0</strong>Left</div>
+    </div>
+  </header>
+
+  <!-- Progress -->
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span>Progress</span>
+      <span id="progress-pct">0%</span>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  </div>
+
+  <!-- Add Panel -->
+  <div class="add-panel">
+    <div class="input-row">
+      <input type="text" id="task-input" placeholder="Add a new task…" autocomplete="off">
+      <button class="btn btn-primary" onclick="addTask()">+ Add</button>
+    </div>
+    <textarea id="task-notes" placeholder="Notes (optional)…" rows="2"></textarea>
+    <div class="meta-row">
+      <select id="task-priority" class="priority-select">
+        <option value="low">🔵 Low</option>
+        <option value="medium" selected>🟡 Medium</option>
+        <option value="high">🔴 High</option>
+      </select>
+      <input type="date" id="task-date">
+      <input type="time" id="task-time">
+      <button class="btn btn-ghost" onclick="clearForm()" style="margin-left:auto;">Clear</button>
+    </div>
+  </div>
+
+  <!-- Filter Bar -->
+  <div class="filter-bar">
+    <div class="filter-tabs">
+      <button class="tab active" onclick="setFilter('all', this)">All</button>
+      <button class="tab" onclick="setFilter('active', this)">Active</button>
+      <button class="tab" onclick="setFilter('completed', this)">Done</button>
+      <button class="tab" onclick="setFilter('high', this)">🔴 High</button>
+    </div>
+    <button class="btn btn-ghost" onclick="clearCompleted()" style="font-size:0.72rem;padding:6px 12px;">Clear Done</button>
+  </div>
+
+  <!-- Task List -->
+  <div class="tasks-list" id="tasks-list">
+    <div class="empty-state">
+      <div class="icon">✦</div>
+      <p>No tasks yet. Add one above!</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  let tasks = JSON.parse(localStorage.getItem('taskflow_tasks') || '[]');
+  let currentFilter = 'all';
+  let editingId = null;
+
+  function save() {
+    localStorage.setItem('taskflow_tasks', JSON.stringify(tasks));
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  function addTask() {
+    const input = document.getElementById('task-input');
+    const title = input.value.trim();
+    if (!title) { input.focus(); return; }
+
+    const task = {
+      id: uid(),
+      title,
+      notes: document.getElementById('task-notes').value.trim(),
+      priority: document.getElementById('task-priority').value,
+      date: document.getElementById('task-date').value,
+      time: document.getElementById('task-time').value,
+      completed: false,
+      createdAt: Date.now()
+    };
+
+    tasks.unshift(task);
+    save();
+    clearForm();
+    render();
+    input.focus();
+  }
+
+  function clearForm() {
+    document.getElementById('task-input').value = '';
+    document.getElementById('task-notes').value = '';
+    document.getElementById('task-priority').value = 'medium';
+    document.getElementById('task-date').value = '';
+    document.getElementById('task-time').value = '';
+  }
+
+  function toggleComplete(id) {
+    const t = tasks.find(t => t.id === id);
+    if (t) { t.completed = !t.completed; save(); render(); }
+  }
+
+  function deleteTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    save(); render();
+  }
+
+  function startEdit(id) {
+    editingId = id;
+    render();
+    const el = document.getElementById('edit-' + id);
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  }
+
+  function saveEdit(id) {
+    const titleEl = document.getElementById('edit-' + id);
+    const notesEl = document.getElementById('edit-notes-' + id);
+    const dateEl = document.getElementById('edit-date-' + id);
+    const timeEl = document.getElementById('edit-time-' + id);
+    const priEl = document.getElementById('edit-pri-' + id);
+
+    const t = tasks.find(t => t.id === id);
+    if (t && titleEl) {
+      t.title = titleEl.value.trim() || t.title;
+      if (notesEl) t.notes = notesEl.value.trim();
+      if (dateEl) t.date = dateEl.value;
+      if (timeEl) t.time = timeEl.value;
+      if (priEl) t.priority = priEl.value;
+    }
+    editingId = null;
+    save(); render();
+  }
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  }
+
+  function clearCompleted() {
+    tasks = tasks.filter(t => !t.completed);
+    save(); render();
+  }
+
+  function getFiltered() {
+    switch (currentFilter) {
+      case 'active': return tasks.filter(t => !t.completed);
+      case 'completed': return tasks.filter(t => t.completed);
+      case 'high': return tasks.filter(t => t.priority === 'high');
+      default: return tasks;
+    }
+  }
+
+  function formatDateTime(date, time) {
+    let parts = [];
+    if (date) {
+      const d = new Date(date + 'T00:00:00');
+      parts.push(d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }));
+    }
+    if (time) parts.push(time);
+    return parts.join(' · ');
+  }
+
+  function render() {
+    const list = document.getElementById('tasks-list');
+    const filtered = getFiltered();
+
+    // Stats
+    const done = tasks.filter(t => t.completed).length;
+    const total = tasks.length;
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-done').textContent = done;
+    document.getElementById('stat-left').textContent = total - done;
+    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('progress-fill').style.width = pct + '%';
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty-state"><div class="icon">✦</div><p>${currentFilter === 'all' ? 'No tasks yet. Add one above!' : 'No tasks in this category.'}</p></div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map((t, i) => {
+      const isEditing = editingId === t.id;
+      const dt = formatDateTime(t.date, t.time);
+
+      if (isEditing) {
+        return `
+        <div class="task-item editing" data-priority="${t.priority}" style="animation-delay:${i*0.04}s">
+          <div class="checkbox ${t.completed ? 'checked' : ''}" onclick="toggleComplete('${t.id}')">
+            <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+              <path d="M1 5l3.5 3.5L11 1" stroke="#0d0f14" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="task-body">
+            <input class="edit-input" id="edit-${t.id}" value="${escHtml(t.title)}" onkeydown="if(event.key==='Enter')saveEdit('${t.id}')">
+            <textarea class="edit-input edit-notes" id="edit-notes-${t.id}" rows="2">${escHtml(t.notes || '')}</textarea>
+            <div class="meta-row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px">
+              <select class="priority-select" id="edit-pri-${t.id}" style="font-size:0.75rem;padding:6px 28px 6px 10px">
+                <option value="low" ${t.priority==='low'?'selected':''}>🔵 Low</option>
+                <option value="medium" ${t.priority==='medium'?'selected':''}>🟡 Medium</option>
+                <option value="high" ${t.priority==='high'?'selected':''}>🔴 High</option>
+              </select>
+              <input type="date" id="edit-date-${t.id}" value="${t.date||''}" style="font-size:0.75rem">
+              <input type="time" id="edit-time-${t.id}" value="${t.time||''}" style="font-size:0.75rem">
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary" style="padding:6px 16px;font-size:0.72rem" onclick="saveEdit('${t.id}')">Save</button>
+              <button class="btn btn-ghost" style="padding:6px 14px;font-size:0.72rem" onclick="editingId=null;render()">Cancel</button>
+            </div>
+          </div>
+        </div>`;
+      }
+
+      return `
+      <div class="task-item ${t.completed ? 'completed' : ''}" data-priority="${t.priority}" style="animation-delay:${i*0.04}s">
+        <div class="checkbox ${t.completed ? 'checked' : ''}" onclick="toggleComplete('${t.id}')">
+          <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+            <path d="M1 5l3.5 3.5L11 1" stroke="#0d0f14" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="task-body">
+          <div class="task-title">${escHtml(t.title)}</div>
+          ${t.notes ? `<div class="task-notes">${escHtml(t.notes)}</div>` : ''}
+          <div class="task-meta">
+            <span class="badge badge-${t.priority}">${t.priority}</span>
+            ${dt ? `<span>📅 ${dt}</span>` : ''}
+          </div>
+        </div>
+        <div class="task-actions">
+          <button class="action-btn" onclick="startEdit('${t.id}')" title="Edit">✎</button>
+          <button class="action-btn del" onclick="deleteTask('${t.id}')" title="Delete">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Enter key to add
+  document.getElementById('task-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addTask();
+  });
+
+  render();
+</script>
+</body>
+</html>
